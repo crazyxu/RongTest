@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.support.design.widget.TextInputLayout;
 import android.support.v7.app.AppCompatActivity;
@@ -15,6 +16,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import com.acce.rongtest.AcceContext;
 import com.acce.rongtest.R;
 import com.acce.rongtest.RongCloudEvent;
 import com.acce.rongtest.TestApp;
@@ -41,26 +43,29 @@ import java.util.Map;
 
 import io.rong.imkit.RongIM;
 import io.rong.imlib.RongIMClient;
+import io.rong.imlib.model.UserInfo;
 
 public class LoginActivity extends AppCompatActivity {
     private TextInputLayout tilEmail;
     private TextInputLayout tilPwd;
     private Button btnLogin;
     private RequestQueue  queue;
-    private SharedPreferences preferences;
     private ProgressDialog loading;
-    private TestApp app;
-
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
-        app=(TestApp)getApplication();
         if (!initSp()){
             queue= Volley.newRequestQueue(this);
             initView();
         }else{
-            connect();
+            connect(AcceContext.getInstance().getDefPreferences().getString("token",""));
+            try {
+                JSONObject jsonObject=new JSONObject(AcceContext.getInstance().getDefPreferences().getString("curUserInfo",""));
+                saveUserDataToContext(jsonObject);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
         }
 
 
@@ -96,7 +101,7 @@ public class LoginActivity extends AppCompatActivity {
      * @param pwd
      */
     void login(String email,String pwd){
-        String url="http://mm.accedeal.com/acce-server/api/user/login.html";
+        String url="http://mm.accedeal.com/acce-server/api/user/getUserOfPro.html";
         final Map<String,String> params=new HashMap<>();
         ObjectMapper mapper = new ObjectMapper(new JsonFactory());
         mapper.setSerializationInclusion(JsonSerialize.Inclusion.NON_NULL);
@@ -121,9 +126,8 @@ public class LoginActivity extends AppCompatActivity {
                 try {
                     JSONObject jsonObject=new JSONObject(s);
                     if ("OK".equalsIgnoreCase(jsonObject.optString("SUCCESS"))){
-                        String token = jsonObject.getString("token");
-                        saveToken(token,tilEmail.getEditText().getText().toString());
-                        connect();
+                        connect(jsonObject.optString("token"));
+                        saveUserData(jsonObject);
                     }else{
                         Toast.makeText(LoginActivity.this,"用户名或密码不正确",Toast.LENGTH_SHORT).show();
                     }
@@ -154,40 +158,45 @@ public class LoginActivity extends AppCompatActivity {
      *初始化，判断本地是否有token
      */
     boolean initSp(){
-        preferences=getSharedPreferences("user", Activity.MODE_PRIVATE);
-        String token = preferences.getString("token","");
+        String token = AcceContext.getInstance().getDefPreferences().getString("token", "");
         if (!TextUtils.isEmpty(token)){
-            app.setToken(token);
             return true;
         }else{
             return false;
         }
     }
 
+
     /**
-     * 保持token
-     * @param token
+     * 存储数据
+     * @param jsonObject
      */
-    void saveToken(String token,String userId){
-        app.setToken(token);
-        app.setUserId(userId);
-        SharedPreferences.Editor editor=preferences.edit();
-        editor.putString("token",token);
-        editor.putString("userId",userId);
+    void saveUserData(JSONObject jsonObject){
+        saveUserDataToContext(jsonObject);
+        //保存token和原始user数据到本地
+        SharedPreferences.Editor editor=AcceContext.getInstance().getDefPreferences().edit();
+        editor.putString("token",jsonObject.optString("token"));
+        editor.putString("curUserInfo",jsonObject.toString());
         editor.commit();
+    }
+
+    void saveUserDataToContext(JSONObject jsonObject){
+        String userId=jsonObject.optString("userId");
+        String userName=jsonObject.optString("userName");
+        String portraitUri=jsonObject.optString("portraitUri");
+        UserInfo userInfo=new UserInfo(userId,userName, Uri.parse(portraitUri));
+        AcceContext.getInstance().setCurrentUserInfo(userInfo);
     }
 
     /**
      * 连接融云
      */
-    void connect(){
+    void connect(String token){
         if (getApplicationInfo().packageName.equals(MethodUtils.getCurProcessName(getApplicationContext()))) {
-            Log.i("connect",app.getToken());
-
             /**
              * IMKit SDK调用第二步,建立与服务器的连接
              */
-            RongIM.connect(app.getToken(), new RongIMClient.ConnectCallback() {
+            RongIM.connect(token, new RongIMClient.ConnectCallback() {
 
                 /**
                  * Token 错误，在线上环境下主要是因为 Token 已经过期，您需要向 App Server 重新请求一个新的 Token

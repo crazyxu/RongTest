@@ -85,8 +85,8 @@
         <activity
             android:name=".activity.ConversationActivity"
             android:label="@string/title_activity_conversation"
-            android:theme="@style/AppTheme.Conversation"
-            android:logo="@mipmap/ic_launcher">
+            android:logo="@mipmap/ic_launcher"
+            android:theme="@style/AppTheme.Conversation">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 
@@ -98,9 +98,11 @@
                     android:scheme="rong" />
             </intent-filter>
         </activity>
-        <activity android:name=".activity.AcceOrderActivity">
-
-        </activity>
+        <activity android:name=".activity.AcceOrderActivity"></activity>
+        <activity
+            android:name=".activity.UserActivity"
+            android:label="@string/title_activity_user"
+            android:theme="@style/AppTheme.NoActionBar"></activity>
     </application>
 
 </manifest>

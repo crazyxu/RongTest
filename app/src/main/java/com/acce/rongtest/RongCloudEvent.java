@@ -16,6 +16,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
+import com.acce.rongtest.listener.AcceConversationBehaviorListener;
 import com.acce.rongtest.modles.UserData;
 import com.acce.rongtest.provider.AcceExtendProvider;
 import com.acce.rongtest.utils.Md5Util;
@@ -219,16 +220,19 @@ public class RongCloudEvent implements RongIMClient.OnReceiveMessageListener, Ro
     }
 
     @Override
-    public UserInfo getUserInfo(String s) {
+    public UserInfo getUserInfo(String userId) {
+        UserInfo curUser=AcceContext.getInstance().getCurrentUserInfo();
+        if (curUser!=null&&curUser.getUserId().equals(userId)){
+            return curUser;
+        }
         final Map<String,String> params=new HashMap<>();
         ObjectMapper mapper = new ObjectMapper(new JsonFactory());
         mapper.setSerializationInclusion(JsonSerialize.Inclusion.NON_NULL);
         mapper.setSerializationInclusion(JsonSerialize.Inclusion.NON_EMPTY);
-        SharedPreferences sp=mContext.getSharedPreferences("user",Context.MODE_PRIVATE);
         String sValue = null;
         try {
             UserData userData=new UserData();
-            userData.setUserName(sp.getString("userId",""));
+            userData.setUserName(userId);
             sValue = mapper.writeValueAsString(userData);
         } catch (IOException e) {
             e.printStackTrace();
@@ -259,7 +263,6 @@ public class RongCloudEvent implements RongIMClient.OnReceiveMessageListener, Ro
                 JSONObject jsonObject = new JSONObject(response);
                 String portraitUri = jsonObject.optString("portraitUri");
                 String nickName = jsonObject.optString("nickName");
-                String userId = jsonObject.optString("userName");
                 Uri uri = Uri.parse(portraitUri);
                 UserInfo userInfo = new UserInfo(userId, nickName, uri);
                 return userInfo;
@@ -313,6 +316,9 @@ public class RongCloudEvent implements RongIMClient.OnReceiveMessageListener, Ro
         RongIM.getInstance().getRongIMClient().setOnReceiveMessageListener(this);//设置消息接收监听器。
         RongIM.getInstance().setSendMessageListener(this);//设置发出消息接收监听器.
         RongIM.getInstance().getRongIMClient().setConnectionStatusListener(this);//设置连接状态监听器。
+        //Conversation点击事件
+        RongIM.setConversationBehaviorListener(new AcceConversationBehaviorListener());
+
 
 //        扩展功能自定义
         InputProvider.ExtendProvider[] provider = {
@@ -327,7 +333,6 @@ public class RongCloudEvent implements RongIMClient.OnReceiveMessageListener, Ro
         RongIM.getInstance().resetInputExtensionProvider(Conversation.ConversationType.GROUP, provider);
         RongIM.getInstance().resetInputExtensionProvider(Conversation.ConversationType.CUSTOMER_SERVICE, provider);
         RongIM.getInstance().resetInputExtensionProvider(Conversation.ConversationType.CHATROOM, provider);
-//        RongIM.getInstance().setPrimaryInputProvider(new InputTestProvider((RongContext) mContext));
 
     }
 

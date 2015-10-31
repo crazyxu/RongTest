@@ -5,6 +5,7 @@ import android.util.Log;
 
 import com.acce.rongtest.message.AcceOrderMessage;
 import com.acce.rongtest.provider.AcceOrderMessageProvider;
+import com.acce.rongtest.provider.AccePrivateConversationProvider;
 import com.acce.rongtest.utils.MethodUtils;
 import io.rong.imkit.RongIM;
 import io.rong.imlib.ipc.RongExceptionHandler;
@@ -13,17 +14,6 @@ import io.rong.imlib.ipc.RongExceptionHandler;
  * Created by acce-3 on 2015/10/29.
  */
 public class TestApp extends Application {
-    private String token;
-
-    public String getUserId() {
-        return userId;
-    }
-
-    public void setUserId(String userId) {
-        this.userId = userId;
-    }
-
-    private String userId;
     @Override
     public void onCreate() {
         super.onCreate();
@@ -36,6 +26,7 @@ public class TestApp extends Application {
                 "io.rong.push".equals(MethodUtils.getCurProcessName(getApplicationContext()))) {
             Log.i("init","-------------");
             RongIM.init(this);
+            AcceContext.init(getApplicationContext());
             /**
              * 融云SDK事件监听处理
              *
@@ -50,19 +41,14 @@ public class TestApp extends Application {
                     //注册自定义消息和消息模板
                     RongIM.registerMessageType(AcceOrderMessage.class);
                     RongIM.registerMessageTemplate(new AcceOrderMessageProvider());
+                    //注册会话提供者
+                    //RongIM.getInstance().registerConversationTemplate(new AccePrivateConversationProvider());
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
 
         }
-    }
-
-    public void setToken(String token){
-        this.token=token;
-    }
-    public String getToken(){
-        return token;
     }
 
 

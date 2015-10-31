@@ -58,6 +58,8 @@ public class AcceOrderMessageProvider extends IContainerItemProvider.MessageProv
 
     }
 
+
+
     @Override
     public View newView(Context context, ViewGroup viewGroup) {
         View view= LayoutInflater.from(context).inflate(R.layout.item_acce_order_message,null);
