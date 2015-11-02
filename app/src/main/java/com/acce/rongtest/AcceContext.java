@@ -4,6 +4,11 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 
+import com.acce.rongtest.net.LruBitmapCache;
+import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.ImageLoader;
+import com.android.volley.toolbox.Volley;
+
 import io.rong.imlib.model.UserInfo;
 
 /**
@@ -11,11 +16,25 @@ import io.rong.imlib.model.UserInfo;
  */
 public class AcceContext {
     private static AcceContext mAcceContext;
+    private RequestQueue queue;
+    private ImageLoader imageLoader;
+
+    public RequestQueue getRequestQueue(){
+        if (queue==null)
+            queue= Volley.newRequestQueue(mContext);
+        return queue;
+    }
 
     public SharedPreferences getDefPreferences() {
         return defPreferences;
     }
-
+    public ImageLoader getImageLoader(){
+        getRequestQueue();
+        if (imageLoader==null){
+            imageLoader=new ImageLoader(queue,new LruBitmapCache());
+        }
+        return imageLoader;
+    }
 
 
     private SharedPreferences defPreferences;

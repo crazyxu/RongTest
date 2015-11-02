@@ -21,6 +21,9 @@ import com.acce.rongtest.R;
 import com.acce.rongtest.RongCloudEvent;
 import com.acce.rongtest.TestApp;
 import com.acce.rongtest.modles.UserData;
+import com.acce.rongtest.net.NetConstant;
+import com.acce.rongtest.net.RequestHelper;
+import com.acce.rongtest.utils.MapperUtils;
 import com.acce.rongtest.utils.Md5Util;
 import com.acce.rongtest.utils.MethodUtils;
 import com.android.volley.AuthFailureError;
@@ -45,12 +48,13 @@ import io.rong.imkit.RongIM;
 import io.rong.imlib.RongIMClient;
 import io.rong.imlib.model.UserInfo;
 
-public class LoginActivity extends AppCompatActivity {
+public class LoginActivity extends AppCompatActivity implements RequestHelper.RequestResponse{
     private TextInputLayout tilEmail;
     private TextInputLayout tilPwd;
     private Button btnLogin;
     private RequestQueue  queue;
     private ProgressDialog loading;
+    private Map<String,String> params;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -101,56 +105,14 @@ public class LoginActivity extends AppCompatActivity {
      * @param pwd
      */
     void login(String email,String pwd){
-        String url="http://mm.accedeal.com/acce-server/api/user/getUserOfPro.html";
-        final Map<String,String> params=new HashMap<>();
-        ObjectMapper mapper = new ObjectMapper(new JsonFactory());
-        mapper.setSerializationInclusion(JsonSerialize.Inclusion.NON_NULL);
-        mapper.setSerializationInclusion(JsonSerialize.Inclusion.NON_EMPTY);
-
-        String sValue = null;
-        try {
-            UserData userData=new UserData();
-            userData.setPassword(Md5Util.getMD5Str(pwd));
-            userData.setUserName(email);
-            sValue = mapper.writeValueAsString(userData);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        params=new HashMap<>();
+        UserData userData=new UserData();
+        userData.setPassword(Md5Util.getMD5Str(pwd));
+        userData.setUserName(email);
+        String sValue =new MapperUtils().getMapperStr(userData);
         params.put("json",sValue);
-        StringRequest loginRequest=new StringRequest(Request.Method.POST, url, new Response.Listener<String>() {
-            @Override
-            public void onResponse(String s) {
-                if (loading!=null)
-                    loading.dismiss();
-                Log.i("--json--",s);
-                try {
-                    JSONObject jsonObject=new JSONObject(s);
-                    if ("OK".equalsIgnoreCase(jsonObject.optString("SUCCESS"))){
-                        connect(jsonObject.optString("token"));
-                        saveUserData(jsonObject);
-                    }else{
-                        Toast.makeText(LoginActivity.this,"用户名或密码不正确",Toast.LENGTH_SHORT).show();
-                    }
-
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                }
-            }
-        }, new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError volleyError) {
-                Log.i("--json--","request error");
-                if (loading!=null)
-                    loading.dismiss();
-                Toast.makeText(LoginActivity.this,"请求失败，请重试！",Toast.LENGTH_SHORT).show();
-            }
-        }){
-            @Override
-            protected Map<String, String> getParams() throws AuthFailureError {
-                return params;
-            }
-        };
-        queue.add(loginRequest);
+        new RequestHelper().addRequestQueue(NetConstant.REQUEST_LOGIN,NetConstant.getUrl(NetConstant.REQUEST_LOGIN), Request.Method.POST,
+                params,this);
         loading=ProgressDialog.show(this,"","正在登录，请稍等...");
     }
 
@@ -167,22 +129,10 @@ public class LoginActivity extends AppCompatActivity {
     }
 
 
-    /**
-     * 存储数据
-     * @param jsonObject
-     */
-    void saveUserData(JSONObject jsonObject){
-        saveUserDataToContext(jsonObject);
-        //保存token和原始user数据到本地
-        SharedPreferences.Editor editor=AcceContext.getInstance().getDefPreferences().edit();
-        editor.putString("token",jsonObject.optString("token"));
-        editor.putString("curUserInfo",jsonObject.toString());
-        editor.commit();
-    }
 
     void saveUserDataToContext(JSONObject jsonObject){
-        String userId=jsonObject.optString("userId");
-        String userName=jsonObject.optString("userName");
+        String userId=jsonObject.optString("userName");
+        String userName=jsonObject.optString("nickName");
         String portraitUri=jsonObject.optString("portraitUri");
         UserInfo userInfo=new UserInfo(userId,userName, Uri.parse(portraitUri));
         AcceContext.getInstance().setCurrentUserInfo(userInfo);
@@ -234,5 +184,49 @@ public class LoginActivity extends AppCompatActivity {
     }
 
 
+    @Override
+    public void onResponse(String response, int tag) {
+        SharedPreferences.Editor editor=AcceContext.getInstance().getDefPreferences().edit();
+        try{
+            switch (tag){
+                case NetConstant.REQUEST_LOGIN:
+                    if (loading!=null)
+                        loading.dismiss();
+                    JSONObject jsonObject=new JSONObject(response);
+                    if ("OK".equalsIgnoreCase(jsonObject.optString("SUCCESS"))){
+                        connect(jsonObject.optString("token"));
+                    }else{
+                        Toast.makeText(LoginActivity.this,"用户名或密码不正确",Toast.LENGTH_SHORT).show();
+                    }
+                    editor.putString("token", jsonObject.optString("token"));
+                    new RequestHelper().addRequestQueue(NetConstant.REQUEST_USER_INFO,NetConstant.getUrl(NetConstant.REQUEST_USER_INFO), Request.Method.POST,
+                            params,this);
+                    break;
+                case NetConstant.REQUEST_USER_INFO:
+                    JSONObject jsonObjectUser=new JSONObject(response);
+                    editor.putString("curUserInfo", jsonObjectUser.toString());
+                    Log.i("userInfo",response);
+                    saveUserDataToContext(jsonObjectUser);
+                    break;
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        editor.commit();
+
+
+
+    }
+
+    @Override
+    public void onErrorResponse(VolleyError volleyError, int tag) {
+        switch (tag){
+            case NetConstant.REQUEST_LOGIN:
+                if (loading!=null)
+                    loading.dismiss();
+                Toast.makeText(LoginActivity.this,"请求失败，请重试！",Toast.LENGTH_SHORT).show();
+                break;
+        }
+    }
 }
 

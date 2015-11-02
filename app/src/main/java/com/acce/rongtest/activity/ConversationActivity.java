@@ -6,6 +6,8 @@ import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.MenuItem;
+
 import com.acce.rongtest.R;
 import com.acce.rongtest.RongCloudEvent;
 import java.util.Locale;
@@ -76,4 +78,10 @@ public class ConversationActivity extends AppCompatActivity {
         fragment.setUri(uri);
     }
 
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId()==android.R.id.home)
+            ConversationActivity.this.finish();
+        return super.onOptionsItemSelected(item);
+    }
 }
